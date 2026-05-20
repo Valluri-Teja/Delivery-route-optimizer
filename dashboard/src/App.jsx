@@ -85,27 +85,15 @@ export default function App() {
   const placeOrder = async () => {
     try {
       const res = await axios.post(`${API}/orders`, form);
-      setMessage(`✅ Order assigned to ${res.data.assigned_agent?.name || "No agent available"}!`);
+      setMessage(`✅ Assigned to ${res.data.assigned_agent?.name || "No agent"}!`);
       fetchData();
       setTimeout(() => setMessage(""), 3000);
     } catch {
-      setMessage("❌ Failed to place order!");
+      setMessage("❌ Failed!");
     }
   };
 
   const nodes = Object.keys(NODE_POSITIONS);
-
-  const tabStyle = (t) => ({
-    padding: "8px 20px",
-    borderRadius: "6px",
-    border: "none",
-    cursor: "pointer",
-    fontFamily: "monospace",
-    fontWeight: "bold",
-    fontSize: "13px",
-    backgroundColor: tab === t ? "#00ff88" : "#222",
-    color: tab === t ? "#000" : "#aaa",
-  });
 
   const analyticsData = {
     total_orders: orders.length,
@@ -128,121 +116,130 @@ export default function App() {
     ).map(([location, count]) => ({ location, orders: count })),
   };
 
-  return (
-    <div style={{ fontFamily: "monospace", backgroundColor: "#0f0f0f", minHeight: "100vh", color: "white", padding: "20px" }}>
-      <h1 style={{ color: "#00ff88", textAlign: "center", marginBottom: "10px" }}>🚴 Delivery Route Optimizer</h1>
+  const activeCount = agents.filter(a => a.status !== "idle").length;
 
-      <div style={{ display: "flex", gap: "10px", justifyContent: "center", marginBottom: "20px" }}>
-        <button style={tabStyle("grid")} onClick={() => setTab("grid")}>Grid Map</button>
-        <button style={tabStyle("chennai")} onClick={() => setTab("chennai")}>Chennai Map</button>
-        <button style={tabStyle("analytics")} onClick={() => setTab("analytics")}>Analytics</button>
+  return (
+    <div style={{ backgroundColor: "#0d1117", minHeight: "100vh", color: "#e6edf3", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+
+      {/* Navbar */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px", height: "48px", borderBottom: "1px solid #21262d", backgroundColor: "#161b22" }}>
+        <span style={{ fontSize: "14px", fontWeight: "600", color: "#e6edf3" }}>Delivery Route Optimizer</span>
+
+        <div style={{ display: "flex", gap: "4px" }}>
+          {["grid", "chennai", "analytics"].map(t => (
+            <button key={t} onClick={() => setTab(t)} style={{
+              padding: "5px 14px", borderRadius: "6px", border: "1px solid",
+              borderColor: tab === t ? "#388bfd" : "transparent",
+              backgroundColor: tab === t ? "rgba(56,139,253,0.15)" : "transparent",
+              color: tab === t ? "#388bfd" : "#8b949e",
+              fontSize: "13px", cursor: "pointer", fontFamily: "inherit",
+            }}>
+              {t === "grid" ? "Grid Map" : t === "chennai" ? "Chennai Map" : "Analytics"}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#3fb950" }}>
+          <span style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#3fb950", display: "inline-block" }} />
+          Clear roads · {activeCount}x · {new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+        </div>
       </div>
 
-      {tab === "grid" && (
-        <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", justifyContent: "center" }}>
-          <div style={{ backgroundColor: "#1a1a1a", borderRadius: "10px", padding: "20px" }}>
-            <h2 style={{ color: "#00ff88" }}>🗺️ City Map</h2>
-            <svg width={GRID_SIZE + 80} height={GRID_SIZE + 80}>
-              {EDGES.map(([a, b], i) => {
-                const pa = getPos(a), pb = getPos(b);
-                return <line key={i} x1={pa.x} y1={pa.y} x2={pb.x} y2={pb.y} stroke="#333" strokeWidth={2} />;
-              })}
-              {nodes.map(node => {
-                const { x, y } = getPos(node);
-                return (
-                  <g key={node}>
-                    <circle cx={x} cy={y} r={18} fill="#222" stroke="#444" strokeWidth={2} />
-                    <text x={x} y={y + 5} textAnchor="middle" fill="white" fontSize={12}>{node}</text>
-                  </g>
-                );
-              })}
-              {agents.map(agent => {
-                const { x, y } = getPos(agent.current_location);
-                const color = COLORS[agent.status] || "#fff";
-                return (
-                  <g key={agent.id}>
-                    <circle cx={x} cy={y} r={10} fill={color} opacity={0.9} />
-                    <text x={x} y={y - 20} textAnchor="middle" fill={color} fontSize={10}>{agent.name}</text>
-                  </g>
-                );
-              })}
-            </svg>
-            <div style={{ display: "flex", gap: "15px", marginTop: "10px" }}>
-              <span style={{ color: "#00ff88" }}>● Idle</span>
-              <span style={{ color: "#ffaa00" }}>● To Pickup</span>
-              <span style={{ color: "#00aaff" }}>● Delivering</span>
-            </div>
-          </div>
+      {/* Content */}
+      <div style={{ padding: "20px 24px" }}>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "20px", minWidth: "300px" }}>
-            <div style={{ backgroundColor: "#1a1a1a", borderRadius: "10px", padding: "20px" }}>
-              <h2 style={{ color: "#00ff88" }}>📦 Place Order</h2>
-              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                <input
-                  value={form.customer_name}
-                  onChange={e => setForm({ ...form, customer_name: e.target.value })}
-                  placeholder="Customer name"
-                  style={{ padding: "8px", borderRadius: "6px", backgroundColor: "#333", color: "white", border: "none" }}
-                />
-                <select
-                  value={form.pickup_location}
-                  onChange={e => setForm({ ...form, pickup_location: e.target.value })}
-                  style={{ padding: "8px", borderRadius: "6px", backgroundColor: "#333", color: "white", border: "none" }}
-                >
-                  {nodes.map(n => <option key={n} value={n}>Pickup: {n}</option>)}
-                </select>
-                <select
-                  value={form.delivery_location}
-                  onChange={e => setForm({ ...form, delivery_location: e.target.value })}
-                  style={{ padding: "8px", borderRadius: "6px", backgroundColor: "#333", color: "white", border: "none" }}
-                >
-                  {nodes.map(n => <option key={n} value={n}>Deliver to: {n}</option>)}
-                </select>
-                <button
-                  onClick={placeOrder}
-                  style={{ padding: "10px", backgroundColor: "#00ff88", color: "#000", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" }}
-                >
-                  Place Order 🚴
-                </button>
-                {message && <span style={{ color: "#00ff88", fontSize: "12px" }}>{message}</span>}
+        {/* Grid Tab */}
+        {tab === "grid" && (
+          <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", justifyContent: "center" }}>
+            <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", borderRadius: "10px", padding: "20px" }}>
+              <h2 style={{ color: "#e6edf3", fontSize: "14px", fontWeight: "600", marginBottom: "16px" }}>🗺️ City Map</h2>
+              <svg width={GRID_SIZE + 80} height={GRID_SIZE + 80}>
+                {EDGES.map(([a, b], i) => {
+                  const pa = getPos(a), pb = getPos(b);
+                  return <line key={i} x1={pa.x} y1={pa.y} x2={pb.x} y2={pb.y} stroke="#30363d" strokeWidth={2} />;
+                })}
+                {nodes.map(node => {
+                  const { x, y } = getPos(node);
+                  return (
+                    <g key={node}>
+                      <circle cx={x} cy={y} r={18} fill="#21262d" stroke="#444c56" strokeWidth={2} />
+                      <text x={x} y={y + 5} textAnchor="middle" fill="#e6edf3" fontSize={12}>{node}</text>
+                    </g>
+                  );
+                })}
+                {agents.map(agent => {
+                  const { x, y } = getPos(agent.current_location);
+                  const color = COLORS[agent.status] || "#fff";
+                  return (
+                    <g key={agent.id}>
+                      <circle cx={x} cy={y} r={10} fill={color} opacity={0.9} />
+                      <text x={x} y={y - 20} textAnchor="middle" fill={color} fontSize={10}>{agent.name}</text>
+                    </g>
+                  );
+                })}
+              </svg>
+              <div style={{ display: "flex", gap: "16px", marginTop: "10px", fontSize: "12px" }}>
+                <span style={{ color: "#3fb950" }}>● Idle</span>
+                <span style={{ color: "#f0883e" }}>● To Pickup</span>
+                <span style={{ color: "#388bfd" }}>● Delivering</span>
               </div>
             </div>
 
-            <div style={{ backgroundColor: "#1a1a1a", borderRadius: "10px", padding: "20px" }}>
-              <h2 style={{ color: "#00ff88" }}>🚴 Agents</h2>
-              {agents.map(agent => (
-                <div key={agent.id} style={{ padding: "8px", borderBottom: "1px solid #333" }}>
-                  <span style={{ color: COLORS[agent.status] }}>●</span> {agent.name} — {agent.current_location} — <span style={{ color: "#888" }}>{agent.status}</span>
-                  {agent.route?.length > 0 && (
-                    <div style={{ color: "#555", fontSize: "11px" }}>Route: {agent.route.join(" → ")}</div>
-                  )}
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px", minWidth: "300px" }}>
+              <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", borderRadius: "10px", padding: "20px" }}>
+                <h2 style={{ color: "#e6edf3", fontSize: "14px", fontWeight: "600", marginBottom: "14px" }}>📦 Place Order</h2>
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <input value={form.customer_name} onChange={e => setForm({ ...form, customer_name: e.target.value })}
+                    style={{ padding: "8px 12px", borderRadius: "6px", backgroundColor: "#21262d", color: "#e6edf3", border: "1px solid #30363d", fontSize: "13px", fontFamily: "inherit" }} />
+                  <select value={form.pickup_location} onChange={e => setForm({ ...form, pickup_location: e.target.value })}
+                    style={{ padding: "8px 12px", borderRadius: "6px", backgroundColor: "#21262d", color: "#e6edf3", border: "1px solid #30363d", fontSize: "13px", fontFamily: "inherit" }}>
+                    {nodes.map(n => <option key={n} value={n}>Pickup: {n}</option>)}
+                  </select>
+                  <select value={form.delivery_location} onChange={e => setForm({ ...form, delivery_location: e.target.value })}
+                    style={{ padding: "8px 12px", borderRadius: "6px", backgroundColor: "#21262d", color: "#e6edf3", border: "1px solid #30363d", fontSize: "13px", fontFamily: "inherit" }}>
+                    {nodes.map(n => <option key={n} value={n}>Deliver to: {n}</option>)}
+                  </select>
+                  <button onClick={placeOrder}
+                    style={{ padding: "9px", backgroundColor: "#238636", color: "#fff", border: "1px solid #2ea043", borderRadius: "6px", cursor: "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "inherit" }}>
+                    Place Order 🚴
+                  </button>
+                  {message && <span style={{ color: "#3fb950", fontSize: "12px" }}>{message}</span>}
                 </div>
-              ))}
-            </div>
+              </div>
 
-            <div style={{ backgroundColor: "#1a1a1a", borderRadius: "10px", padding: "20px" }}>
-              <h2 style={{ color: "#00ff88" }}>📋 Orders</h2>
-              {orders.length === 0
-                ? <p style={{ color: "#888" }}>No orders yet</p>
-                : orders.map(order => (
-                  <div key={order.id} style={{ padding: "8px", borderBottom: "1px solid #333", fontSize: "12px" }}>
-                    <div>{order.customer_name} → {order.pickup_location} to {order.delivery_location}</div>
-                    <div style={{ color: order.status === "delivered" ? "#00ff88" : "#ffaa00" }}>{order.status}</div>
+              <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", borderRadius: "10px", padding: "20px" }}>
+                <h2 style={{ color: "#e6edf3", fontSize: "14px", fontWeight: "600", marginBottom: "12px" }}>🚴 Agents</h2>
+                {agents.map(agent => (
+                  <div key={agent.id} style={{ padding: "8px 0", borderBottom: "1px solid #21262d", fontSize: "13px", display: "flex", justifyContent: "space-between" }}>
+                    <span><span style={{ color: COLORS[agent.status] }}>●</span> {agent.name}</span>
+                    <span style={{ color: "#8b949e" }}>{agent.current_location} · {agent.status}</span>
                   </div>
-                ))
-              }
+                ))}
+              </div>
+
+              <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", borderRadius: "10px", padding: "20px" }}>
+                <h2 style={{ color: "#e6edf3", fontSize: "14px", fontWeight: "600", marginBottom: "12px" }}>📋 Orders</h2>
+                {orders.length === 0
+                  ? <p style={{ color: "#8b949e", fontSize: "13px" }}>No orders yet</p>
+                  : orders.map(order => (
+                    <div key={order.id} style={{ padding: "8px 0", borderBottom: "1px solid #21262d", fontSize: "12px" }}>
+                      <div style={{ color: "#e6edf3" }}>{order.customer_name} · {order.pickup_location} → {order.delivery_location}</div>
+                      <span style={{
+                        fontSize: "11px", padding: "2px 8px", borderRadius: "12px", display: "inline-block", marginTop: "3px",
+                        backgroundColor: order.status === "delivered" ? "rgba(63,185,80,0.15)" : order.status === "assigned" ? "rgba(56,139,253,0.15)" : "rgba(139,148,158,0.15)",
+                        color: order.status === "delivered" ? "#3fb950" : order.status === "assigned" ? "#388bfd" : "#8b949e",
+                      }}>{order.status}</span>
+                    </div>
+                  ))
+                }
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {tab === "chennai" && (
-        <ChennaiMap agents={agents} orders={orders} onOrderPlaced={fetchData} />
-      )}
-
-      {tab === "analytics" && (
-        <Analytics analytics={analyticsData} />
-      )}
+        {tab === "chennai" && <ChennaiMap agents={agents} orders={orders} onOrderPlaced={fetchData} />}
+        {tab === "analytics" && <Analytics analytics={analyticsData} />}
+      </div>
     </div>
   );
 }
