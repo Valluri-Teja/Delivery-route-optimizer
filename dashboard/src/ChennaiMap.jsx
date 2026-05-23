@@ -4,7 +4,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import axios from "axios";
 
-const API = "http://127.0.0.1:8000";
+const API = "http://localhost:8000";
 
 const CHENNAI_LOCATIONS = {
   "Central Station": [13.0827, 80.2707],

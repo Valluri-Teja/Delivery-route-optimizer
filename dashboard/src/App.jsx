@@ -3,8 +3,8 @@ import axios from "axios";
 import ChennaiMap from "./ChennaiMap";
 import Analytics from "./Analytics";
 
-const API = "http://127.0.0.1:8000";
-const WS = "ws://127.0.0.1:8000/ws";
+const API = "http://localhost:8000";
+const WS = "ws://localhost:8000/ws";
 
 const GRID_SIZE = 400;
 const CELL = GRID_SIZE / 3;
