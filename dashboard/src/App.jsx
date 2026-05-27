@@ -41,24 +41,39 @@ function getPos(node) {
 export default function App() {
   const [agents, setAgents] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [chennaiAgents, setChennaiAgents] = useState([]);
+  const [chennaiOrders, setChennaiOrders] = useState([]);
   const [form, setForm] = useState({ customer_name: "Teja", pickup_location: "A", delivery_location: "P" });
   const [message, setMessage] = useState("");
   const [tab, setTab] = useState("grid");
+  const [traffic, setTraffic] = useState({ status: "Clear Roads", multiplier: 1, color: "#3fb950" });
   const wsRef = useRef(null);
 
   useEffect(() => {
     fetchData();
     connectWS();
+    fetchTraffic();
     return () => wsRef.current?.close();
   }, []);
 
   const fetchData = async () => {
-    const [a, o] = await Promise.all([
+    const [a, o, ca, co] = await Promise.all([
       axios.get(`${API}/agents`),
-      axios.get(`${API}/orders`)
+      axios.get(`${API}/orders`),
+      axios.get(`${API}/chennai/agents`),
+      axios.get(`${API}/chennai/orders`),
     ]);
     setAgents(a.data);
     setOrders(o.data);
+    setChennaiAgents(ca.data);
+    setChennaiOrders(co.data);
+  };
+
+  const fetchTraffic = async () => {
+    try {
+      const res = await axios.get(`${API}/traffic`);
+      setTraffic(res.data);
+    } catch {}
   };
 
   const connectWS = () => {
@@ -77,6 +92,17 @@ export default function App() {
         setOrders(data.orders);
         setMessage(`🔄 ${data.message}`);
         setTimeout(() => setMessage(""), 3000);
+      } else if (data.type === "chennai_agent_update") {
+        setChennaiAgents(prev => prev.map(a =>
+          a.id === data.agent.id
+            ? { ...data.agent, lat: data.lat, lng: data.lng }
+            : a
+        ));
+        if (data.order) setChennaiOrders(prev => {
+          const exists = prev.find(o => o.id === data.order.id);
+          if (exists) return prev.map(o => o.id === data.order.id ? data.order : o);
+          return [...prev, data.order];
+        });
       }
     };
     ws.onclose = () => setTimeout(connectWS, 2000);
@@ -139,9 +165,9 @@ export default function App() {
           ))}
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#3fb950" }}>
-          <span style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#3fb950", display: "inline-block" }} />
-          Clear roads · {activeCount}x · {new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+        <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: traffic.color }}>
+          <span style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: traffic.color, display: "inline-block" }} />
+          {traffic.status} · {traffic.multiplier}x · {new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
         </div>
       </div>
 
@@ -237,7 +263,13 @@ export default function App() {
           </div>
         )}
 
-        {tab === "chennai" && <ChennaiMap agents={agents} orders={orders} onOrderPlaced={fetchData} />}
+        {tab === "chennai" && (
+          <ChennaiMap
+            agents={chennaiAgents}
+            orders={chennaiOrders}
+            onOrderPlaced={fetchData}
+          />
+        )}
         {tab === "analytics" && <Analytics analytics={analyticsData} />}
       </div>
     </div>

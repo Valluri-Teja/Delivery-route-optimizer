@@ -19,38 +19,6 @@ const CHENNAI_LOCATIONS = {
   "Sholinganallur":  [12.9010, 80.2279],
 };
 
-const LOCATION_TO_NODE = {
-  "Central Station": "J",
-  "Marina Beach":    "H",
-  "Anna Nagar":      "I",
-  "Tambaram":        "A",
-  "T Nagar":         "G",
-  "Adyar":           "F",
-  "Velachery":       "C",
-  "Chromepet":       "B",
-  "Porur":           "E",
-  "Sholinganallur":  "D",
-};
-
-const NODE_TO_COORDS = {
-  A: [12.9249, 80.1000],
-  B: [12.9516, 80.1462],
-  C: [12.9815, 80.2209],
-  D: [12.9010, 80.2279],
-  E: [13.0367, 80.1567],
-  F: [13.0012, 80.2565],
-  G: [13.0418, 80.2341],
-  H: [13.0500, 80.2824],
-  I: [13.0850, 80.2101],
-  J: [13.0827, 80.2707],
-  K: [13.0600, 80.2500],
-  L: [13.0700, 80.2800],
-  M: [13.1200, 80.2100],
-  N: [13.1100, 80.2600],
-  O: [13.1300, 80.2900],
-  P: [13.1500, 80.3000],
-};
-
 const STATUS_COLORS = {
   idle: "#3fb950",
   moving_to_pickup: "#f0883e",
@@ -86,40 +54,54 @@ export default function ChennaiMap({ agents, orders, onOrderPlaced }) {
   });
   const [message, setMessage] = useState("");
   const [agentPositions, setAgentPositions] = useState({});
+  const [localOrders, setLocalOrders] = useState([]);
 
+  // Initialize agent positions from CHENNAI_LOCATIONS
   useEffect(() => {
     const positions = {};
     agents.forEach(agent => {
-      const coords = NODE_TO_COORDS[agent.current_location];
-      if (coords) positions[agent.name] = coords;
+      // Use lat/lng from WebSocket if available
+      if (agent.lat && agent.lng) {
+        positions[agent.name] = [agent.lat, agent.lng];
+      } else if (CHENNAI_LOCATIONS[agent.current_location]) {
+        positions[agent.name] = CHENNAI_LOCATIONS[agent.current_location];
+      } else {
+        // fallback to first location
+        positions[agent.name] = CHENNAI_LOCATIONS["Central Station"];
+      }
     });
-    if (Object.keys(positions).length > 0) {
-      setAgentPositions(positions);
-    } else {
-      const initial = {};
+
+    // If no agents yet, set defaults
+    if (Object.keys(positions).length === 0) {
       agentNames.forEach((name, i) => {
-        initial[name] = CHENNAI_LOCATIONS[locationNames[i % locationNames.length]];
+        positions[name] = CHENNAI_LOCATIONS[locationNames[i % locationNames.length]];
       });
-      setAgentPositions(initial);
     }
+    setAgentPositions(positions);
   }, [agents]);
+
+  // Sync orders from prop + local
+  useEffect(() => {
+    if (orders.length > 0) setLocalOrders(orders);
+  }, [orders]);
 
   const placeOrder = async () => {
     try {
-      const res = await axios.post(`${API}/orders`, {
+      const res = await axios.post(`${API}/chennai/orders`, {
         customer_name: form.customer_name,
-        pickup_location: LOCATION_TO_NODE[form.pickup_location],
-        delivery_location: LOCATION_TO_NODE[form.delivery_location],
+        pickup_location: form.pickup_location,
+        delivery_location: form.delivery_location,
       });
+      const newOrder = res.data.order;
+      if (newOrder) setLocalOrders(prev => [newOrder, ...prev]);
       setMessage(`✅ Assigned to ${res.data.assigned_agent?.name || "No agent"}!`);
-      onOrderPlaced();
       setTimeout(() => setMessage(""), 3000);
-    } catch {
+    } catch (e) {
       setMessage("❌ Failed to place order!");
     }
   };
 
-  const recentOrders = [...orders].reverse().slice(0, 15);
+  const recentOrders = [...localOrders].slice(0, 15);
 
   const inputStyle = {
     width: "100%", padding: "7px 10px", borderRadius: "6px",
@@ -150,13 +132,14 @@ export default function ChennaiMap({ agents, orders, onOrderPlaced }) {
               <Popup>{name}</Popup>
             </Marker>
           ))}
-          {agents.map(agent => {
-            const pos = agentPositions[agent.name];
+          {agentNames.map(name => {
+            const pos = agentPositions[name];
             if (!pos) return null;
-            const color = STATUS_COLORS[agent.status] || "#e6edf3";
+            const agent = agents.find(a => a.name === name);
+            const color = agent ? (STATUS_COLORS[agent.status] || "#3fb950") : "#3fb950";
             return (
-              <Marker key={agent.id} position={pos} icon={makeIcon(color)}>
-                <Popup>{agent.name} — {agent.current_location} — {agent.status}</Popup>
+              <Marker key={name} position={pos} icon={makeIcon(color)}>
+                <Popup>{name} — {agent?.status || "idle"}</Popup>
               </Marker>
             );
           })}
