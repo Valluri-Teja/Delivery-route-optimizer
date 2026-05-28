@@ -28,23 +28,51 @@ const STATUS_COLORS = {
 const agentNames = ["Ravi", "Priya", "Arjun", "Sneha", "Kiran"];
 const locationNames = Object.keys(CHENNAI_LOCATIONS);
 
-function makeIcon(color) {
+function makeIcon(color, name) {
   return L.divIcon({
     className: "",
-    html: `<div style="width:13px;height:13px;border-radius:50%;background:${color};border:2px solid #0d1117;box-shadow:0 0 0 1px ${color}"></div>`,
-    iconSize: [13, 13],
-    iconAnchor: [6, 6],
+    html: `
+      <div style="display:flex;flex-direction:column;align-items:center;">
+        <div style="
+          background:${color};
+          width:10px;height:10px;border-radius:50% 50% 50% 0;
+          transform:rotate(-45deg);
+          box-shadow:0 1px 4px rgba(0,0,0,0.5);
+        "></div>
+        <div style="
+          background:rgba(10,12,16,0.85);
+          color:${color};
+          font-size:8px;font-weight:700;
+          padding:1px 4px;border-radius:3px;
+          white-space:nowrap;font-family:monospace;
+          margin-top:2px;
+          border:1px solid ${color}33;
+          letter-spacing:0.3px;
+        ">${name}</div>
+      </div>
+    `,
+    iconSize: [10, 24],
+    iconAnchor: [5, 10],
   });
 }
 
 function locationIcon() {
   return L.divIcon({
     className: "",
-    html: `<div style="width:8px;height:8px;border-radius:50%;background:#30363d;border:1px solid #8b949e"></div>`,
-    iconSize: [8, 8],
-    iconAnchor: [4, 4],
+    html: `
+      <div style="
+        width:10px;height:10px;border-radius:50%;
+        background:#1a73e8;
+        border:2px solid rgba(255,255,255,0.8);
+        box-shadow:0 1px 4px rgba(0,0,0,0.35);
+      "></div>
+    `,
+    iconSize: [10, 10],
+    iconAnchor: [5, 5],
   });
 }
+
+
 
 export default function ChennaiMap({ agents, orders, onOrderPlaced }) {
   const [form, setForm] = useState({
@@ -56,22 +84,17 @@ export default function ChennaiMap({ agents, orders, onOrderPlaced }) {
   const [agentPositions, setAgentPositions] = useState({});
   const [localOrders, setLocalOrders] = useState([]);
 
-  // Initialize agent positions from CHENNAI_LOCATIONS
   useEffect(() => {
     const positions = {};
     agents.forEach(agent => {
-      // Use lat/lng from WebSocket if available
       if (agent.lat && agent.lng) {
         positions[agent.name] = [agent.lat, agent.lng];
       } else if (CHENNAI_LOCATIONS[agent.current_location]) {
         positions[agent.name] = CHENNAI_LOCATIONS[agent.current_location];
       } else {
-        // fallback to first location
         positions[agent.name] = CHENNAI_LOCATIONS["Central Station"];
       }
     });
-
-    // If no agents yet, set defaults
     if (Object.keys(positions).length === 0) {
       agentNames.forEach((name, i) => {
         positions[name] = CHENNAI_LOCATIONS[locationNames[i % locationNames.length]];
@@ -80,7 +103,6 @@ export default function ChennaiMap({ agents, orders, onOrderPlaced }) {
     setAgentPositions(positions);
   }, [agents]);
 
-  // Sync orders from prop + local
   useEffect(() => {
     if (orders.length > 0) setLocalOrders(orders);
   }, [orders]);
@@ -127,19 +149,27 @@ export default function ChennaiMap({ agents, orders, onOrderPlaced }) {
 
         <MapContainer center={[13.0827, 80.2707]} zoom={11} style={{ height: "100%", width: "100%" }} zoomControl>
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="© OpenStreetMap" />
+
           {Object.entries(CHENNAI_LOCATIONS).map(([name, coords]) => (
             <Marker key={name} position={coords} icon={locationIcon()}>
-              <Popup>{name}</Popup>
+              <Popup><span style={{ fontSize: "12px", fontWeight: "600" }}>{name}</span></Popup>
             </Marker>
           ))}
+
           {agentNames.map(name => {
             const pos = agentPositions[name];
             if (!pos) return null;
             const agent = agents.find(a => a.name === name);
             const color = agent ? (STATUS_COLORS[agent.status] || "#3fb950") : "#3fb950";
             return (
-              <Marker key={name} position={pos} icon={makeIcon(color)}>
-                <Popup>{name} — {agent?.status || "idle"}</Popup>
+              <Marker key={name} position={pos} icon={makeIcon(color, name)}>
+                <Popup>
+                  <div style={{ fontSize: "12px" }}>
+                    <strong>{name}</strong><br />
+                    Status: {agent?.status || "idle"}<br />
+                    Location: {agent?.current_location || "—"}
+                  </div>
+                </Popup>
               </Marker>
             );
           })}
