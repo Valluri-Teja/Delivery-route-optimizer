@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.pyo
+venv/
+venv311/
+*.pkl
+node_modules/
+dashboard/node_modules/
+cache/
+.DS_Store
