@@ -1,44 +1,33 @@
 # 🚴 Real-Time Delivery Route Optimizer
 
-A production-grade delivery routing system that optimizes delivery routes in real-time using Dijkstra algorithm — similar to how Swiggy and Zomato manage their delivery fleet.
+Live API: http://3.108.42.154:8001  
+Frontend: https://delivery-route-optimizer-tan.vercel.app
 
-## 🔥 Features
-- **Dijkstra Shortest Path** — finds optimal route for every delivery
-- **Smart Agent Assignment** — automatically assigns nearest idle agent
-- **Dynamic Reassignment** — reassigns orders if a closer agent becomes available
-- **Real-Time Tracking** — live agent movement via WebSockets
-- **Live Map Dashboard** — React dashboard showing agents moving in real time
-- **5 Concurrent Agents** — handle multiple deliveries simultaneously
+## Tech Stack
+- **Backend**: Python, FastAPI, WebSockets, NetworkX, Dijkstra
+- **Frontend**: React, Vite, Leaflet, Recharts
+- **Database**: PostgreSQL (SQLAlchemy ORM)
+- **Infrastructure**: Docker, AWS EC2, GitHub Actions CI/CD
 
-## 🛠️ Tech Stack
-- **Backend** — Python, FastAPI, NetworkX
-- **Real-time** — WebSockets
-- **Frontend** — React, Vite
-- **Algorithm** — Dijkstra shortest path (via NetworkX)
-- **Infrastructure** — Docker, AWS EC2
+## Features
+- Real-time agent movement via WebSockets
+- Dijkstra routing on 4x4 grid + Chennai OSM map
+- Multi-order batching per agent (up to 3 orders)
+- Traffic-aware routing with time-based multipliers
+- Fleet analytics dashboard with Recharts
+- Auto-deploy on every push via GitHub Actions
 
-## 🚀 How to Run
+## Run Locally
+```bash
+# Backend
+docker-compose up --build
 
-### Backend
-pip install -r requirements.txt
-uvicorn main:app --reload
+# Frontend
+cd dashboard && npm run dev
+```
 
-### Frontend
-cd dashboard
-npm install
-npm run dev
-
-Open http://localhost:5173 to see the live dashboard.
-
-## 🏗️ Architecture
-Customer places order
-        ↓
-System finds nearest idle agent (Dijkstra)
-        ↓
-Agent moves along optimal route in real time
-        ↓
-WebSockets broadcast location to dashboard
-        ↓
-Dynamic reassignment if closer agent found
-        ↓
-Order delivered!
+## Architecture
+- 5 delivery agents with real-time GPS tracking
+- WebSocket broadcasts agent position every 2 seconds
+- Chennai map with 68,533 real intersections
+- PostgreSQL persists all orders and agent states
