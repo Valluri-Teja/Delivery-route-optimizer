@@ -1,4 +1,5 @@
 from models import DeliveryAgent, Order, AgentStatus, OrderStatus
+from chennai_graph import load_chennai_graph, find_shortest_path_chennai, get_nearest_node
 import uuid
 from datetime import datetime
 
@@ -15,22 +16,15 @@ CHENNAI_LOCATIONS = {
     "Sholinganallur":  (12.9010, 80.2279),
 }
 
+chennai_G = None
 chennai_agents = {}
 chennai_orders = {}
 agent_gps = {}
 agent_routes = {}
 
-def haversine(lat1, lng1, lat2, lng2):
-    import math
-    R = 6371000
-    phi1, phi2 = math.radians(lat1), math.radians(lat2)
-    dphi = math.radians(lat2 - lat1)
-    dlambda = math.radians(lng2 - lng1)
-    a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2
-    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
-
 def init_chennai():
-    global chennai_agents
+    global chennai_G, chennai_agents
+    chennai_G = load_chennai_graph()
     agent_list = [
         DeliveryAgent(id=str(uuid.uuid4()), name="Ravi",  current_location="Central Station"),
         DeliveryAgent(id=str(uuid.uuid4()), name="Priya", current_location="Anna Nagar"),
@@ -44,20 +38,42 @@ def init_chennai():
         agent_gps[agent.id] = {"lat": lat, "lng": lng}
     print(f"Chennai dispatcher ready with {len(chennai_agents)} agents!")
 
-def interpolate_route(from_loc, to_loc, steps=10):
+def get_route_coords(from_loc, to_loc):
+    """Get real road route coordinates using Dijkstra on OSM graph"""
     lat1, lng1 = CHENNAI_LOCATIONS[from_loc]
     lat2, lng2 = CHENNAI_LOCATIONS[to_loc]
-    return [
-        {"lat": lat1 + (lat2-lat1)*i/steps, "lng": lng1 + (lng2-lng1)*i/steps}
-        for i in range(steps+1)
-    ]
+    origin_node = get_nearest_node(chennai_G, lat1, lng1)
+    dest_node = get_nearest_node(chennai_G, lat2, lng2)
+    path, distance = find_shortest_path_chennai(chennai_G, origin_node, dest_node)
+    if not path:
+        # fallback to linear interpolation
+        steps = 20
+        return [
+            {"lat": lat1 + (lat2-lat1)*i/steps, "lng": lng1 + (lng2-lng1)*i/steps}
+            for i in range(steps+1)
+        ], 0
+    coords = []
+    for node in path:
+        node_data = chennai_G.nodes[node]
+        coords.append({"lat": node_data["y"], "lng": node_data["x"]})
+    return coords, distance
+
+def haversine(lat1, lng1, lat2, lng2):
+    import math
+    R = 6371000
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lng2 - lng1)
+    a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2
+    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
 
 def find_nearest_chennai_agent(pickup_location):
     pickup_lat, pickup_lng = CHENNAI_LOCATIONS[pickup_location]
     nearest_agent, min_distance = None, float("inf")
     for agent in chennai_agents.values():
         if agent.status == AgentStatus.IDLE:
-            agent_lat, agent_lng = CHENNAI_LOCATIONS.get(agent.current_location, (pickup_lat, pickup_lng))
+            agent_lat, agent_lng = CHENNAI_LOCATIONS.get(
+                agent.current_location, (pickup_lat, pickup_lng))
             distance = haversine(agent_lat, agent_lng, pickup_lat, pickup_lng)
             if distance < min_distance:
                 min_distance = distance
@@ -72,12 +88,12 @@ def assign_chennai_order(customer_name, pickup_location, delivery_location):
         delivery_location=delivery_location
     )
     chennai_orders[order.id] = order
-    agent, distance = find_nearest_chennai_agent(pickup_location)
+    agent, _ = find_nearest_chennai_agent(pickup_location)
     if not agent:
         return order, None, 0
 
-    to_pickup = interpolate_route(agent.current_location, pickup_location)
-    to_delivery = interpolate_route(pickup_location, delivery_location)
+    to_pickup, _ = get_route_coords(agent.current_location, pickup_location)
+    to_delivery, dist = get_route_coords(pickup_location, delivery_location)
     full_route = to_pickup + to_delivery[1:]
 
     agent_routes[agent.id] = {
@@ -92,11 +108,7 @@ def assign_chennai_order(customer_name, pickup_location, delivery_location):
     agent.route_index = 0
     order.status = OrderStatus.ASSIGNED
     order.assigned_agent_id = agent.id
-
-    pickup_lat, pickup_lng = CHENNAI_LOCATIONS[pickup_location]
-    delivery_lat, delivery_lng = CHENNAI_LOCATIONS[delivery_location]
-    dist = haversine(pickup_lat, pickup_lng, delivery_lat, delivery_lng)
-    return order, agent, dist
+    return order, agent, dist if dist != float("inf") else 0
 
 def move_chennai_agents_step():
     updates = []
@@ -108,29 +120,30 @@ def move_chennai_agents_step():
             continue
         route = route_info["route"]
         idx = route_info["index"]
-        if idx < len(route) - 1:
-            idx += 1
-            route_info["index"] = idx
-            pos = route[idx]
-            agent_gps[agent.id] = {"lat": pos["lat"], "lng": pos["lng"]}
-            order = chennai_orders.get(route_info["order_id"])
-            if idx == route_info["pickup_index"] and order:
-                agent.status = AgentStatus.DELIVERING
-                order.status = OrderStatus.PICKED_UP
-            if idx == len(route) - 1 and order:
-                agent.status = AgentStatus.IDLE
-                agent.current_order_id = None
-                agent.total_deliveries += 1
-                agent.current_location = order.delivery_location
-                order.status = OrderStatus.DELIVERED
-                order.delivered_at = datetime.now().isoformat()
-                agent_routes.pop(agent.id, None)
-            updates.append({
-                "agent": agent.to_dict(),
-                "lat": pos["lat"],
-                "lng": pos["lng"],
-                "order": order.to_dict() if order else None
-            })
+        # Move multiple steps at once for smoother movement on long OSM routes
+        steps_per_tick = max(1, len(route) // 50)
+        idx = min(idx + steps_per_tick, len(route) - 1)
+        route_info["index"] = idx
+        pos = route[idx]
+        agent_gps[agent.id] = {"lat": pos["lat"], "lng": pos["lng"]}
+        order = chennai_orders.get(route_info["order_id"])
+        if idx >= route_info["pickup_index"] and agent.status == AgentStatus.MOVING_TO_PICKUP and order:
+            agent.status = AgentStatus.DELIVERING
+            order.status = OrderStatus.PICKED_UP
+        if idx >= len(route) - 1 and order:
+            agent.status = AgentStatus.IDLE
+            agent.current_order_id = None
+            agent.total_deliveries += 1
+            agent.current_location = order.delivery_location
+            order.status = OrderStatus.DELIVERED
+            order.delivered_at = datetime.now().isoformat()
+            agent_routes.pop(agent.id, None)
+        updates.append({
+            "agent": agent.to_dict(),
+            "lat": pos["lat"],
+            "lng": pos["lng"],
+            "order": order.to_dict() if order else None
+        })
     return updates
 
 def get_all_chennai_agents():
