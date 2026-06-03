@@ -72,8 +72,6 @@ function locationIcon() {
   });
 }
 
-
-
 export default function ChennaiMap({ agents, orders, onOrderPlaced }) {
   const [form, setForm] = useState({
     customer_name: "Teja",
@@ -115,9 +113,10 @@ export default function ChennaiMap({ agents, orders, onOrderPlaced }) {
         delivery_location: form.delivery_location,
       });
       const newOrder = res.data.order;
-      if (newOrder) setLocalOrders(prev => [newOrder, ...prev]);
-      setMessage(`✅ Assigned to ${res.data.assigned_agent?.name || "No agent"}!`);
-      setTimeout(() => setMessage(""), 3000);
+      const eta = res.data.eta_minutes;
+      if (newOrder) setLocalOrders(prev => [{ ...newOrder, eta_minutes: eta }, ...prev]);
+      setMessage(`✅ Assigned to ${res.data.assigned_agent?.name || "No agent"}! ETA: ${eta} min`);
+      setTimeout(() => setMessage(""), 4000);
     } catch (e) {
       setMessage("❌ Failed to place order!");
     }
@@ -228,12 +227,21 @@ export default function ChennaiMap({ agents, orders, onOrderPlaced }) {
             : recentOrders.map(order => (
               <div key={order.id} style={{ padding: "7px 0", borderBottom: "1px solid #21262d" }}>
                 <div style={{ color: "#e6edf3", fontSize: "12px" }}>{order.customer_name} · {order.pickup_location} → {order.delivery_location}</div>
-                <span style={{
-                  fontSize: "11px", padding: "1px 8px", borderRadius: "12px",
-                  display: "inline-block", marginTop: "3px",
-                  backgroundColor: order.status === "delivered" ? "rgba(63,185,80,0.15)" : order.status === "assigned" ? "rgba(56,139,253,0.15)" : "rgba(139,148,158,0.15)",
-                  color: order.status === "delivered" ? "#3fb950" : order.status === "assigned" ? "#388bfd" : "#8b949e",
-                }}>{order.status}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "3px" }}>
+                  <span style={{
+                    fontSize: "11px", padding: "1px 8px", borderRadius: "12px",
+                    display: "inline-block",
+                    backgroundColor: order.status === "delivered" ? "rgba(63,185,80,0.15)" : order.status === "assigned" ? "rgba(56,139,253,0.15)" : order.status === "picked_up" ? "rgba(240,136,62,0.15)" : "rgba(139,148,158,0.15)",
+                    color: order.status === "delivered" ? "#3fb950" : order.status === "assigned" ? "#388bfd" : order.status === "picked_up" ? "#f0883e" : "#8b949e",
+                  }}>{order.status}</span>
+                  {order.eta_minutes && order.status !== "delivered" && (
+                    <span style={{
+                      fontSize: "11px", padding: "1px 8px", borderRadius: "12px",
+                      backgroundColor: "rgba(139,148,158,0.1)",
+                      color: "#8b949e", display: "inline-block",
+                    }}>⏱ {order.eta_minutes} min</span>
+                  )}
+                </div>
               </div>
             ))
           }
