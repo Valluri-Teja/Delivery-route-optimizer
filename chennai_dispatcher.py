@@ -108,7 +108,12 @@ def assign_chennai_order(customer_name, pickup_location, delivery_location):
     agent.route_index = 0
     order.status = OrderStatus.ASSIGNED
     order.assigned_agent_id = agent.id
-    return order, agent, dist if dist != float("inf") else 0
+    from traffic import calculate_eta
+    route_len = len(full_route)
+    initial_eta = calculate_eta(route_len, route_len)
+    order_dict = order.to_dict()
+    order_dict["eta_minutes"] = initial_eta
+    return order, agent, dist if dist != float("inf") else 0, initial_eta
 
 def move_chennai_agents_step():
     updates = []
@@ -138,12 +143,19 @@ def move_chennai_agents_step():
             order.status = OrderStatus.DELIVERED
             order.delivered_at = datetime.now().isoformat()
             agent_routes.pop(agent.id, None)
+        
+        from traffic import calculate_eta
+        remaining = len(route) - idx
+        total = len(route)
+        eta = calculate_eta(remaining, total)
+
         updates.append({
-            "agent": agent.to_dict(),
-            "lat": pos["lat"],
-            "lng": pos["lng"],
-            "order": order.to_dict() if order else None
-        })
+        "agent": agent.to_dict(),
+        "lat": pos["lat"],
+        "lng": pos["lng"],
+        "order": order.to_dict() if order else None,
+        "eta_minutes": eta
+    })
     return updates
 
 def get_all_chennai_agents():

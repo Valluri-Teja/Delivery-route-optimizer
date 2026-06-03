@@ -43,3 +43,13 @@ def get_traffic_status():
         "current_hour": hour,
         "is_peak": multiplier > 1.5
     }
+
+def calculate_eta(remaining_steps, total_steps, route_distance_km=None):
+    multiplier = get_traffic_multiplier()
+    avg_speed_kmh = 30
+    if route_distance_km and total_steps > 0:
+        remaining_distance = route_distance_km * (remaining_steps / total_steps)
+    else:
+        remaining_distance = remaining_steps * 0.15
+    eta_minutes = (remaining_distance / avg_speed_kmh) * 60 * multiplier
+    return max(1, round(eta_minutes))

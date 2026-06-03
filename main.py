@@ -48,10 +48,11 @@ def get_graph():
 
 @app.post("/chennai/orders")
 def create_chennai_order(request: OrderRequest):
-    order, agent, distance = assign_chennai_order(
+    order, agent, distance, eta = assign_chennai_order(
         request.customer_name, request.pickup_location, request.delivery_location)
     return {"order": order.to_dict(), "assigned_agent": agent.to_dict() if agent else None,
-            "distance_km": round(distance/1000, 2) if distance and distance != float("inf") else 0 }
+            "distance_km": round(distance/1000, 2) if distance and distance != float("inf") else 0,
+            "eta_minutes": eta}
 
 @app.get("/chennai/agents")
 def get_chennai_agents():
