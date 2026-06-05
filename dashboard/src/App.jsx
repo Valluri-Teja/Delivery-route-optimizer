@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from "react";
+import { Routes, Route, useNavigate } from "react-router-dom";
 import axios from "axios";
 import ChennaiMap from "./ChennaiMap";
 import Analytics from "./Analytics";
+import TrackOrder from "./TrackOrder";
 
 const API = "http://localhost:8000";
 const WS = "ws://localhost:8000/ws";
@@ -38,7 +40,7 @@ function getPos(node) {
   return { x: 60 + col * CELL, y: 60 + row * CELL };
 }
 
-export default function App() {
+function MainApp() {
   const [agents, setAgents] = useState([]);
   const [orders, setOrders] = useState([]);
   const [chennaiAgents, setChennaiAgents] = useState([]);
@@ -48,6 +50,7 @@ export default function App() {
   const [tab, setTab] = useState("grid");
   const [traffic, setTraffic] = useState({ status: "Clear Roads", multiplier: 1, color: "#3fb950" });
   const wsRef = useRef(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchData();
@@ -174,7 +177,6 @@ export default function App() {
       {/* Content */}
       <div style={{ padding: "20px 24px" }}>
 
-        {/* Grid Tab */}
         {tab === "grid" && (
           <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", justifyContent: "center" }}>
             <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", borderRadius: "10px", padding: "20px" }}>
@@ -268,10 +270,20 @@ export default function App() {
             agents={chennaiAgents}
             orders={chennaiOrders}
             onOrderPlaced={fetchData}
+            onTrackOrder={(orderId) => navigate(`/track/${orderId}`)}
           />
         )}
         {tab === "analytics" && <Analytics analytics={analyticsData} />}
       </div>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/track/:orderId" element={<TrackOrder />} />
+      <Route path="/*" element={<MainApp />} />
+    </Routes>
   );
 }

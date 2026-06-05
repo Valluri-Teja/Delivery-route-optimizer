@@ -72,7 +72,7 @@ function locationIcon() {
   });
 }
 
-export default function ChennaiMap({ agents, orders, onOrderPlaced }) {
+export default function ChennaiMap({ agents, orders, onOrderPlaced, onTrackOrder }) {
   const [form, setForm] = useState({
     customer_name: "Teja",
     pickup_location: "Central Station",
@@ -227,7 +227,7 @@ export default function ChennaiMap({ agents, orders, onOrderPlaced }) {
             : recentOrders.map(order => (
               <div key={order.id} style={{ padding: "7px 0", borderBottom: "1px solid #21262d" }}>
                 <div style={{ color: "#e6edf3", fontSize: "12px" }}>{order.customer_name} · {order.pickup_location} → {order.delivery_location}</div>
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "3px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "3px", flexWrap: "wrap" }}>
                   <span style={{
                     fontSize: "11px", padding: "1px 8px", borderRadius: "12px",
                     display: "inline-block",
@@ -240,6 +240,13 @@ export default function ChennaiMap({ agents, orders, onOrderPlaced }) {
                       backgroundColor: "rgba(139,148,158,0.1)",
                       color: "#8b949e", display: "inline-block",
                     }}>⏱ {order.eta_minutes} min</span>
+                  )}
+                  {order.status !== "delivered" && onTrackOrder && (
+                    <button onClick={() => onTrackOrder(order.id)} style={{
+                      fontSize: "10px", padding: "1px 7px", borderRadius: "3px",
+                      backgroundColor: "transparent", border: "1px solid #388bfd",
+                      color: "#388bfd", cursor: "pointer", fontFamily: "inherit",
+                    }}>Track</button>
                   )}
                 </div>
               </div>
