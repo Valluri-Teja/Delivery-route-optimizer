@@ -5,8 +5,8 @@ import ChennaiMap from "./ChennaiMap";
 import Analytics from "./Analytics";
 import TrackOrder from "./TrackOrder";
 
-const API = "http://localhost:8000";
-const WS = "ws://localhost:8000/ws";
+const API = "http://3.108.42.154:8001";
+const WS = "ws://3.108.42.154:8001/ws";
 
 const GRID_SIZE = 400;
 const CELL = GRID_SIZE / 3;
@@ -40,6 +40,30 @@ function getPos(node) {
   return { x: 60 + col * CELL, y: 60 + row * CELL };
 }
 
+function useScreenSize() {
+  const [screenSize, setScreenSize] = useState({
+    isMobile: window.innerWidth < 768,
+    isTablet: window.innerWidth >= 768 && window.innerWidth < 1024,
+    isDesktop: window.innerWidth >= 1024,
+    width: window.innerWidth,
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setScreenSize({
+        isMobile: window.innerWidth < 768,
+        isTablet: window.innerWidth >= 768 && window.innerWidth < 1024,
+        isDesktop: window.innerWidth >= 1024,
+        width: window.innerWidth,
+      });
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  return screenSize;
+}
+
 function MainApp() {
   const [agents, setAgents] = useState([]);
   const [orders, setOrders] = useState([]);
@@ -51,6 +75,7 @@ function MainApp() {
   const [traffic, setTraffic] = useState({ status: "Clear Roads", multiplier: 1, color: "#3fb950" });
   const wsRef = useRef(null);
   const navigate = useNavigate();
+  const { isMobile, isTablet } = useScreenSize();
 
   useEffect(() => {
     fetchData();
@@ -146,96 +171,124 @@ function MainApp() {
   };
 
   const activeCount = agents.filter(a => a.status !== "idle").length;
+  const gridSize = isMobile ? 280 : isTablet ? 340 : 400;
+  const cellSize = gridSize / 3;
+
+  function getPosResponsive(node) {
+    const [col, row] = NODE_POSITIONS[node] || [0, 0];
+    return { x: 40 + col * cellSize, y: 40 + row * cellSize };
+  }
 
   return (
     <div style={{ backgroundColor: "#0d1117", minHeight: "100vh", color: "#e6edf3", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
 
       {/* Navbar */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px", height: "48px", borderBottom: "1px solid #21262d", backgroundColor: "#161b22" }}>
-        <span style={{ fontSize: "14px", fontWeight: "600", color: "#e6edf3" }}>Delivery Route Optimizer</span>
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: isMobile ? "0 12px" : "0 24px",
+        height: isMobile ? "auto" : "48px",
+        paddingTop: isMobile ? "8px" : "0",
+        paddingBottom: isMobile ? "8px" : "0",
+        borderBottom: "1px solid #21262d",
+        backgroundColor: "#161b22",
+        flexWrap: isMobile ? "wrap" : "nowrap",
+        gap: isMobile ? "8px" : "0",
+      }}>
+        <span style={{ fontSize: isMobile ? "13px" : "14px", fontWeight: "600", color: "#e6edf3", whiteSpace: "nowrap" }}>
+          Delivery Route Optimizer
+        </span>
 
         <div style={{ display: "flex", gap: "4px" }}>
           {["grid", "chennai", "analytics"].map(t => (
             <button key={t} onClick={() => setTab(t)} style={{
-              padding: "5px 14px", borderRadius: "6px", border: "1px solid",
+              padding: isMobile ? "4px 8px" : "5px 14px",
+              borderRadius: "6px", border: "1px solid",
               borderColor: tab === t ? "#388bfd" : "transparent",
               backgroundColor: tab === t ? "rgba(56,139,253,0.15)" : "transparent",
               color: tab === t ? "#388bfd" : "#8b949e",
-              fontSize: "13px", cursor: "pointer", fontFamily: "inherit",
+              fontSize: isMobile ? "11px" : "13px",
+              cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
             }}>
               {t === "grid" ? "Grid Map" : t === "chennai" ? "Chennai Map" : "Analytics"}
             </button>
           ))}
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: traffic.color }}>
-          <span style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: traffic.color, display: "inline-block" }} />
-          {traffic.status} · {traffic.multiplier}x · {new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+        <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: isMobile ? "10px" : "12px", color: traffic.color, whiteSpace: "nowrap" }}>
+          <span style={{ width: "6px", height: "6px", borderRadius: "50%", backgroundColor: traffic.color, display: "inline-block" }} />
+          {isMobile ? `${traffic.multiplier}x` : `${traffic.status} · ${traffic.multiplier}x · ${new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`}
         </div>
       </div>
 
       {/* Content */}
-      <div style={{ padding: "20px 24px" }}>
+      <div style={{ padding: isMobile ? "12px" : "20px 24px" }}>
 
         {tab === "grid" && (
-          <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", justifyContent: "center" }}>
-            <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", borderRadius: "10px", padding: "20px" }}>
+          <div style={{
+            display: "flex",
+            gap: "16px",
+            flexDirection: isMobile ? "column" : "row",
+            flexWrap: isTablet ? "wrap" : "nowrap",
+            justifyContent: "center",
+            alignItems: isMobile ? "center" : "flex-start",
+          }}>
+            <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", borderRadius: "10px", padding: isMobile ? "12px" : "20px" }}>
               <h2 style={{ color: "#e6edf3", fontSize: "14px", fontWeight: "600", marginBottom: "16px" }}>🗺️ City Map</h2>
-              <svg width={GRID_SIZE + 80} height={GRID_SIZE + 80}>
+              <svg width={gridSize + (isMobile ? 40 : 80)} height={gridSize + (isMobile ? 40 : 80)}>
                 {EDGES.map(([a, b], i) => {
-                  const pa = getPos(a), pb = getPos(b);
+                  const pa = getPosResponsive(a), pb = getPosResponsive(b);
                   return <line key={i} x1={pa.x} y1={pa.y} x2={pb.x} y2={pb.y} stroke="#30363d" strokeWidth={2} />;
                 })}
                 {nodes.map(node => {
-                  const { x, y } = getPos(node);
+                  const { x, y } = getPosResponsive(node);
                   return (
                     <g key={node}>
-                      <circle cx={x} cy={y} r={18} fill="#21262d" stroke="#444c56" strokeWidth={2} />
-                      <text x={x} y={y + 5} textAnchor="middle" fill="#e6edf3" fontSize={12}>{node}</text>
+                      <circle cx={x} cy={y} r={isMobile ? 14 : 18} fill="#21262d" stroke="#444c56" strokeWidth={2} />
+                      <text x={x} y={y + 5} textAnchor="middle" fill="#e6edf3" fontSize={isMobile ? 10 : 12}>{node}</text>
                     </g>
                   );
                 })}
                 {agents.map(agent => {
-                  const { x, y } = getPos(agent.current_location);
+                  const { x, y } = getPosResponsive(agent.current_location);
                   const color = COLORS[agent.status] || "#fff";
                   return (
                     <g key={agent.id}>
-                      <circle cx={x} cy={y} r={10} fill={color} opacity={0.9} />
-                      <text x={x} y={y - 20} textAnchor="middle" fill={color} fontSize={10}>{agent.name}</text>
+                      <circle cx={x} cy={y} r={isMobile ? 7 : 10} fill={color} opacity={0.9} />
+                      <text x={x} y={y - (isMobile ? 16 : 20)} textAnchor="middle" fill={color} fontSize={isMobile ? 8 : 10}>{agent.name}</text>
                     </g>
                   );
                 })}
               </svg>
-              <div style={{ display: "flex", gap: "16px", marginTop: "10px", fontSize: "12px" }}>
+              <div style={{ display: "flex", gap: "12px", marginTop: "10px", fontSize: "11px" }}>
                 <span style={{ color: "#3fb950" }}>● Idle</span>
                 <span style={{ color: "#f0883e" }}>● To Pickup</span>
                 <span style={{ color: "#388bfd" }}>● Delivering</span>
               </div>
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "16px", minWidth: "300px" }}>
-              <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", borderRadius: "10px", padding: "20px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px", width: isMobile ? "100%" : "300px", minWidth: isMobile ? "unset" : "300px" }}>
+              <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", borderRadius: "10px", padding: isMobile ? "12px" : "20px" }}>
                 <h2 style={{ color: "#e6edf3", fontSize: "14px", fontWeight: "600", marginBottom: "14px" }}>📦 Place Order</h2>
                 <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                   <input value={form.customer_name} onChange={e => setForm({ ...form, customer_name: e.target.value })}
-                    style={{ padding: "8px 12px", borderRadius: "6px", backgroundColor: "#21262d", color: "#e6edf3", border: "1px solid #30363d", fontSize: "13px", fontFamily: "inherit" }} />
+                    style={{ padding: "8px 12px", borderRadius: "6px", backgroundColor: "#21262d", color: "#e6edf3", border: "1px solid #30363d", fontSize: "13px", fontFamily: "inherit", width: "100%", boxSizing: "border-box" }} />
                   <select value={form.pickup_location} onChange={e => setForm({ ...form, pickup_location: e.target.value })}
-                    style={{ padding: "8px 12px", borderRadius: "6px", backgroundColor: "#21262d", color: "#e6edf3", border: "1px solid #30363d", fontSize: "13px", fontFamily: "inherit" }}>
+                    style={{ padding: "8px 12px", borderRadius: "6px", backgroundColor: "#21262d", color: "#e6edf3", border: "1px solid #30363d", fontSize: "13px", fontFamily: "inherit", width: "100%", boxSizing: "border-box" }}>
                     {nodes.map(n => <option key={n} value={n}>Pickup: {n}</option>)}
                   </select>
                   <select value={form.delivery_location} onChange={e => setForm({ ...form, delivery_location: e.target.value })}
-                    style={{ padding: "8px 12px", borderRadius: "6px", backgroundColor: "#21262d", color: "#e6edf3", border: "1px solid #30363d", fontSize: "13px", fontFamily: "inherit" }}>
+                    style={{ padding: "8px 12px", borderRadius: "6px", backgroundColor: "#21262d", color: "#e6edf3", border: "1px solid #30363d", fontSize: "13px", fontFamily: "inherit", width: "100%", boxSizing: "border-box" }}>
                     {nodes.map(n => <option key={n} value={n}>Deliver to: {n}</option>)}
                   </select>
                   <button onClick={placeOrder}
-                    style={{ padding: "9px", backgroundColor: "#238636", color: "#fff", border: "1px solid #2ea043", borderRadius: "6px", cursor: "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "inherit" }}>
+                    style={{ padding: "9px", backgroundColor: "#238636", color: "#fff", border: "1px solid #2ea043", borderRadius: "6px", cursor: "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "inherit", width: "100%" }}>
                     Place Order 🚴
                   </button>
                   {message && <span style={{ color: "#3fb950", fontSize: "12px" }}>{message}</span>}
                 </div>
               </div>
 
-              <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", borderRadius: "10px", padding: "20px" }}>
+              <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", borderRadius: "10px", padding: isMobile ? "12px" : "20px" }}>
                 <h2 style={{ color: "#e6edf3", fontSize: "14px", fontWeight: "600", marginBottom: "12px" }}>🚴 Agents</h2>
                 {agents.map(agent => (
                   <div key={agent.id} style={{ padding: "8px 0", borderBottom: "1px solid #21262d", fontSize: "13px", display: "flex", justifyContent: "space-between" }}>
@@ -245,7 +298,7 @@ function MainApp() {
                 ))}
               </div>
 
-              <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", borderRadius: "10px", padding: "20px" }}>
+              <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", borderRadius: "10px", padding: isMobile ? "12px" : "20px" }}>
                 <h2 style={{ color: "#e6edf3", fontSize: "14px", fontWeight: "600", marginBottom: "12px" }}>📋 Orders</h2>
                 {orders.length === 0
                   ? <p style={{ color: "#8b949e", fontSize: "13px" }}>No orders yet</p>
@@ -271,6 +324,8 @@ function MainApp() {
             orders={chennaiOrders}
             onOrderPlaced={fetchData}
             onTrackOrder={(orderId) => navigate(`/track/${orderId}`)}
+            isMobile={isMobile}
+            isTablet={isTablet}
           />
         )}
         {tab === "analytics" && <Analytics analytics={analyticsData} />}
