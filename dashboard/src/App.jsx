@@ -5,8 +5,8 @@ import ChennaiMap from "./ChennaiMap";
 import Analytics from "./Analytics";
 import TrackOrder from "./TrackOrder";
 
-const API = "http://3.108.42.154:8001";
-const WS = "ws://3.108.42.154:8001/ws";
+const API = "https://delivery-optimizer.hopto.org";
+const WS = "wss://delivery-optimizer.hopto.org/ws";
 
 const GRID_SIZE = 400;
 const CELL = GRID_SIZE / 3;

@@ -4,7 +4,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import axios from "axios";
 
-const API = "http://3.108.42.154:8001";
+const API = "https://delivery-optimizer.hopto.org";
 
 const CHENNAI_LOCATIONS = {
   "Central Station": [13.0827, 80.2707],
