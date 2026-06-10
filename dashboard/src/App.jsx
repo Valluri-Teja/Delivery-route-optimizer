@@ -8,9 +8,6 @@ import TrackOrder from "./TrackOrder";
 const API = "https://delivery-optimizer.hopto.org";
 const WS = "wss://delivery-optimizer.hopto.org/ws";
 
-const GRID_SIZE = 400;
-const CELL = GRID_SIZE / 3;
-
 const COLORS = {
   idle: "#00ff88",
   moving_to_pickup: "#ffaa00",
@@ -34,11 +31,6 @@ const EDGES = [
   ["C","G"],["G","K"],["K","O"],
   ["D","H"],["H","L"],["L","P"],
 ];
-
-function getPos(node) {
-  const [col, row] = NODE_POSITIONS[node] || [0, 0];
-  return { x: 60 + col * CELL, y: 60 + row * CELL };
-}
 
 function useScreenSize() {
   const [screenSize, setScreenSize] = useState({
@@ -171,12 +163,15 @@ function MainApp() {
   };
 
   const activeCount = agents.filter(a => a.status !== "idle").length;
-  const gridSize = isMobile ? 280 : isTablet ? 340 : 400;
+  const gridSize = isMobile ? 300 : isTablet ? 340 : 400;
   const cellSize = gridSize / 3;
+  const svgPadding = isMobile ? 40 : 80;
+  const svgSize = gridSize + svgPadding;
 
   function getPosResponsive(node) {
     const [col, row] = NODE_POSITIONS[node] || [0, 0];
-    return { x: 40 + col * cellSize, y: 40 + row * cellSize };
+    const offset = svgPadding / 2;
+    return { x: offset + col * cellSize, y: offset + row * cellSize };
   }
 
   return (
@@ -185,16 +180,14 @@ function MainApp() {
       {/* Navbar */}
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: isMobile ? "0 12px" : "0 24px",
+        padding: isMobile ? "8px 12px" : "0 24px",
         height: isMobile ? "auto" : "48px",
-        paddingTop: isMobile ? "8px" : "0",
-        paddingBottom: isMobile ? "8px" : "0",
         borderBottom: "1px solid #21262d",
         backgroundColor: "#161b22",
         flexWrap: isMobile ? "wrap" : "nowrap",
-        gap: isMobile ? "8px" : "0",
+        gap: isMobile ? "6px" : "0",
       }}>
-        <span style={{ fontSize: isMobile ? "13px" : "14px", fontWeight: "600", color: "#e6edf3", whiteSpace: "nowrap" }}>
+        <span style={{ fontSize: isMobile ? "12px" : "14px", fontWeight: "600", color: "#e6edf3", whiteSpace: "nowrap" }}>
           Delivery Route Optimizer
         </span>
 
@@ -230,11 +223,21 @@ function MainApp() {
             flexDirection: isMobile ? "column" : "row",
             flexWrap: isTablet ? "wrap" : "nowrap",
             justifyContent: "center",
-            alignItems: isMobile ? "center" : "flex-start",
+            alignItems: isMobile ? "stretch" : "flex-start",
           }}>
-            <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", borderRadius: "10px", padding: isMobile ? "12px" : "20px" }}>
+            {/* City Map */}
+            <div style={{
+              backgroundColor: "#161b22", border: "1px solid #30363d",
+              borderRadius: "10px", padding: isMobile ? "12px" : "20px",
+              width: isMobile ? "100%" : "auto", boxSizing: "border-box",
+            }}>
               <h2 style={{ color: "#e6edf3", fontSize: "14px", fontWeight: "600", marginBottom: "16px" }}>🗺️ City Map</h2>
-              <svg width={gridSize + (isMobile ? 40 : 80)} height={gridSize + (isMobile ? 40 : 80)}>
+              <svg
+                viewBox={`0 0 ${svgSize} ${svgSize}`}
+                width="100%"
+                height={isMobile ? "300px" : `${svgSize}px`}
+                style={{ maxWidth: "100%", display: "block" }}
+              >
                 {EDGES.map(([a, b], i) => {
                   const pa = getPosResponsive(a), pb = getPosResponsive(b);
                   return <line key={i} x1={pa.x} y1={pa.y} x2={pb.x} y2={pb.y} stroke="#30363d" strokeWidth={2} />;
@@ -266,6 +269,7 @@ function MainApp() {
               </div>
             </div>
 
+            {/* Right Panel */}
             <div style={{ display: "flex", flexDirection: "column", gap: "16px", width: isMobile ? "100%" : "300px", minWidth: isMobile ? "unset" : "300px" }}>
               <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", borderRadius: "10px", padding: isMobile ? "12px" : "20px" }}>
                 <h2 style={{ color: "#e6edf3", fontSize: "14px", fontWeight: "600", marginBottom: "14px" }}>📦 Place Order</h2>
