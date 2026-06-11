@@ -81,7 +81,7 @@ export default function ChennaiMap({ agents, orders, onOrderPlaced, onTrackOrder
   const [message, setMessage] = useState("");
   const [agentPositions, setAgentPositions] = useState({});
   const [localOrders, setLocalOrders] = useState([]);
-  const [showPanel, setShowPanel] = useState(!isMobile);
+  const [showPanel, setShowPanel] = useState(false);
 
   useEffect(() => {
     const positions = {};
@@ -132,13 +132,23 @@ export default function ChennaiMap({ agents, orders, onOrderPlaced, onTrackOrder
     fontFamily: "inherit", boxSizing: "border-box",
   };
 
-  const mapHeight = isMobile ? "50vh" : "calc(100vh - 88px)";
-
   return (
-    <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", height: isMobile ? "auto" : "calc(100vh - 88px)", borderRadius: "8px", overflow: "hidden", border: "1px solid #30363d" }}>
+    <div style={{
+      display: "flex",
+      flexDirection: isMobile ? "column" : "row",
+      height: isMobile ? "auto" : "calc(100vh - 88px)",
+      borderRadius: "8px",
+      overflow: isMobile ? "visible" : "hidden",
+      border: "1px solid #30363d",
+    }}>
 
       {/* Map */}
-      <div style={{ flex: 1, position: "relative", height: mapHeight }}>
+      <div style={{
+        flex: 1,
+        position: "relative",
+        height: isMobile ? "60vh" : "100%",
+        minHeight: "300px",
+      }}>
         <div style={{
           position: "absolute", top: "10px", left: "50px", zIndex: 1000,
           background: "rgba(13,17,23,0.85)", color: "#8b949e",
@@ -158,17 +168,24 @@ export default function ChennaiMap({ agents, orders, onOrderPlaced, onTrackOrder
             color: "#e6edf3", padding: "6px 12px", borderRadius: "6px",
             fontSize: "11px", cursor: "pointer", fontFamily: "inherit",
           }}>
-            {showPanel ? "Hide Panel" : "Show Panel"}
+            {showPanel ? "Hide Panel" : "Order / Agents"}
           </button>
         )}
 
-        <MapContainer center={[13.0827, 80.2707]} zoom={isMobile ? 10 : 11} style={{ height: "100%", width: "100%" }} zoomControl>
+        <MapContainer
+          center={[13.0827, 80.2707]}
+          zoom={isMobile ? 10 : 11}
+          style={{ height: "100%", width: "100%", minHeight: "300px" }}
+          zoomControl
+        >
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="© OpenStreetMap" />
+
           {Object.entries(CHENNAI_LOCATIONS).map(([name, coords]) => (
             <Marker key={name} position={coords} icon={locationIcon()}>
               <Popup><span style={{ fontSize: "12px", fontWeight: "600" }}>{name}</span></Popup>
             </Marker>
           ))}
+
           {agentNames.map(name => {
             const pos = agentPositions[name];
             if (!pos) return null;
@@ -199,16 +216,17 @@ export default function ChennaiMap({ agents, orders, onOrderPlaced, onTrackOrder
         </div>
       </div>
 
-      {/* Right Panel */}
+      {/* Right Panel - always visible on desktop, toggle on mobile */}
       {(!isMobile || showPanel) && (
         <div style={{
           width: isMobile ? "100%" : "270px",
           backgroundColor: "#161b22",
           borderLeft: isMobile ? "none" : "1px solid #30363d",
           borderTop: isMobile ? "1px solid #30363d" : "none",
-          display: "flex", flexDirection: "column",
+          display: "flex",
+          flexDirection: "column",
           overflowY: "auto",
-          maxHeight: isMobile ? "50vh" : "unset",
+          maxHeight: isMobile ? "60vh" : "unset",
         }}>
           <div style={{ padding: "16px", borderBottom: "1px solid #21262d" }}>
             <div style={{ fontSize: "11px", fontWeight: "600", color: "#8b949e", letterSpacing: "0.5px", marginBottom: "10px" }}>PLACE CHENNAI ORDER</div>
